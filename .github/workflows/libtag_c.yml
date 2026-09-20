@@ -1,0 +1,67 @@
+name: build libtag_c release binaries
+
+on:
+  push:
+    tags:
+      - "taiko-*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Setup zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build libtag_c.so
+        run: zig build -Drelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libtag_c.so
+          path: zig-out/lib/libtag_c.so
+
+  build-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Setup zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build libtag_c.dll
+        run: zig build -Dtarget=x86_64-windows-gnu -Drelease
+      # zig emits the import library as tag_c.lib next to the dll; keep a
+      # mingw-style libtag_c.dll.a alias as well, so the dll can be linked by
+      # path with toolchains that cannot consume a bare .dll (zig cc/msvc).
+      - name: Keep the import library
+        run: |
+          if [ -f zig-out/lib/tag_c.lib ]; then
+            cp zig-out/lib/tag_c.lib zig-out/lib/libtag_c.dll.a
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tag_c.dll
+          path: |
+            zig-out/bin/tag_c.dll
+            zig-out/lib/tag_c.lib
+            zig-out/lib/libtag_c.dll.a
+
+  release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: libs/
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: libs/*

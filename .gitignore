@@ -54,3 +54,6 @@ CMakeScripts
 .clangd
 .cache
 .idea
+
+zig-out/
+.zig-cache/
