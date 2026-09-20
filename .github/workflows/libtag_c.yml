@@ -1,0 +1,56 @@
+name: build libtag_c release binaries
+
+on:
+  push:
+    tags:
+      - "taiko-*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Setup zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build libtag_c.so
+        run: zig build -Drelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libtag_c.so
+          path: zig-out/lib/libtag_c.so
+
+  build-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: Setup zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Build libtag_c.dll
+        run: zig build -Dtarget=x86_64-windows-gnu -Drelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tag_c.dll
+          path: zig-out/bin/tag_c.dll
+
+  release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: libs/
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: libs/*
